@@ -12,6 +12,16 @@ class DidChangeAuthLocal {
 
   static DidChangeAuthLocal get instance => _instance;
 
+  Future<bool> checkIfFaceIDChanged() async {
+    final bool hasFaceIDChanged =
+        await methodChannel.invokeMethod('checkIfFaceIDChanged');
+    return hasFaceIDChanged;
+  }
+
+  Future<void> createKeychainItem() async {
+    await methodChannel.invokeMethod('createKeychainItem');
+  }
+
   Future<AuthLocalStatus?> onCheckBiometric({String? token}) async {
     return Platform.isIOS
         ? await checkBiometricIOS(token: token ?? '')
