@@ -36,8 +36,16 @@ class DidChangeAuthLocal {
     }
   }
 
-  Future<void> createKeychainItem() async {
-    await methodChannel.invokeMethod('createKeychainItem');
+  Future<bool?> createKeychainItem() async {
+    try {
+      return await methodChannel.invokeMethod('createKeychainItem');
+    } on PlatformException catch (e) {
+      if (e.code == 'CREATE_KEYCHAIN_ITEM_FAILED') {
+        return false;
+      } else {
+        return null;
+      }
+    }
   }
 
   Future<AuthLocalStatus?> onCheckBiometric({String? token}) async {
