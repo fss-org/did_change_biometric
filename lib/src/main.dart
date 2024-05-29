@@ -13,16 +13,26 @@ class DidChangeAuthLocal {
   static DidChangeAuthLocal get instance => _instance;
 
   Future<AuthLocalStatus?> checkIfFaceIDChanged() async {
-    final int result = await methodChannel.invokeMethod('checkIfFaceIDChanged');
-    switch (result) {
-      case 200:
-        return AuthLocalStatus.valid;
-      case 404:
-        return AuthLocalStatus.invalid;
-      case 500:
-        return AuthLocalStatus.changed;
-      default:
-        return null;
+    try {
+      final int result =
+          await methodChannel.invokeMethod('checkIfFaceIDChanged');
+      switch (result) {
+        case 200:
+          return AuthLocalStatus.valid;
+        case 404:
+          return AuthLocalStatus.invalid;
+        case 500:
+          return AuthLocalStatus.changed;
+        default:
+          return null;
+      }
+    } on PlatformException catch (e) {
+      switch (e.code) {
+        case "BIOMETRICS_NOT_AVAILABLE":
+          return AuthLocalStatus.notAvailable;
+        default:
+          return null;
+      }
     }
   }
 

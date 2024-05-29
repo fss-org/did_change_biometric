@@ -1,1 +1,1 @@
-enum AuthLocalStatus { valid, changed, invalid }
+enum AuthLocalStatus { valid, changed, invalid, notAvailable }
