@@ -12,10 +12,18 @@ class DidChangeAuthLocal {
 
   static DidChangeAuthLocal get instance => _instance;
 
-  Future<bool> checkIfFaceIDChanged() async {
-    final bool hasFaceIDChanged =
-        await methodChannel.invokeMethod('checkIfFaceIDChanged');
-    return hasFaceIDChanged;
+  Future<AuthLocalStatus?> checkIfFaceIDChanged() async {
+    final int result = await methodChannel.invokeMethod('checkIfFaceIDChanged');
+    switch (result) {
+      case 200:
+        return AuthLocalStatus.valid;
+      case 404:
+        return AuthLocalStatus.invalid;
+      case 500:
+        return AuthLocalStatus.changed;
+      default:
+        return null;
+    }
   }
 
   Future<void> createKeychainItem() async {
@@ -24,7 +32,7 @@ class DidChangeAuthLocal {
 
   Future<AuthLocalStatus?> onCheckBiometric({String? token}) async {
     return Platform.isIOS
-        ? await checkBiometricIOS(token: token ?? '')
+        ? await checkIfFaceIDChanged()
         : await checkBiometricAndroid();
   }
 

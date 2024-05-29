@@ -13,9 +13,19 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
             case "checkIfFaceIDChanged":
-                checkIfFaceIDChanged(result: result)
+                self.checkIfFaceIDChanged(result: result)
             case "createKeychainItem":
-                createKeychainItem(result: result)
+                self.createKeychainItem(result: result)
+            case "get_token":
+                self.authenticateBiometric { data,code in
+                    switch code {
+                    case 200:
+                        result(data)
+                    case -7:
+                        result(FlutterError(code:"biometric_invalid",message:"Invalid biometric",details: data as Any))
+                    default:
+                        result(FlutterError(code:"unknow", message: data, details: nil))
+                    }}
             default:
                 result(FlutterMethodNotImplemented)
         }
@@ -65,11 +75,11 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
 
             let status = SecItemCopyMatching(query as CFDictionary, nil)
             if status == errSecSuccess {
-                result(false) // Face ID has not changed
+                result(200) // Face ID has not changed
             } else if status == errSecItemNotFound {
-                result(true) // Keychain item not found, treat as Face ID changed
+                result(404) // Keychain item not found, treat as Face ID changed
             } else {
-                result(true) // Face ID has changed or another error occurred
+                result(500) // Face ID has changed or another error occurred
             }
         } else {
             result(FlutterError(code: "BIOMETRICS_NOT_AVAILABLE",
@@ -78,45 +88,22 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    
-    // public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    //     switch call.method {
-    //     case "get_token":
-    //         self.authenticateBiometric { data,code in
-    //             switch code {
-    //             case 200:
-    //                 result(data)
-    //             case -7:
-    //                 result(FlutterError(code:"biometric_invalid",message:"Invalid biometric",details: data as Any))
-    //             default:
-    //                 result(FlutterError(code:"unknow", message: data, details: nil))
-    //             }}
-    //     default:
-    //         result(FlutterMethodNotImplemented)
-            
-            
-    //     }
-    // }
-    
-    
-    
-    
-    // func authenticateBiometric(complete : @escaping (String?, Int?) -> Void){
-    //     let context = LAContext()
-    //     var authError : NSError?
-    //     if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) == false {
-    //         complete(nil, authError?.code)
-    //         return
-    //     }
+    func authenticateBiometric(complete : @escaping (String?, Int?) -> Void){
+        let context = LAContext()
+        var authError : NSError?
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) == false {
+            complete(nil, authError?.code)
+            return
+        }
         
-    //     if let biometricData = context.evaluatedPolicyDomainState {
-    //         let base64Data = biometricData.base64EncodedData()
-    //         let token = String(data: base64Data, encoding: .utf8)
-    //         complete(token, 200)
-    //     }else {
-    //         complete(nil, 998)
-    //     }
-    // }
+        if let biometricData = context.evaluatedPolicyDomainState {
+            let base64Data = biometricData.base64EncodedData()
+            let token = String(data: base64Data, encoding: .utf8)
+            complete(token, 200)
+        }else {
+            complete(nil, 998)
+        }
+    }
 
 }
 
