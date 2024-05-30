@@ -64,14 +64,15 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "biometricCheck",
+            kSecReturnData as String: true,
             kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail // Do not prompt user
         ]
 
         let status = SecItemCopyMatching(query as CFDictionary, nil)
         if status == errSecSuccess {
             result(200) // Face ID has not changed
-        } else if status == errSecItemNotFound {
-            result(404) // Keychain item not found, treat as Face ID changed
+        } else if status == errSecItemNotFound || status == errSecAuthFailed {
+            result(true) // Keychain item not found or authentication failed, treat as Face ID changed
         } else {
             result(FlutterError(code: "CHECK_KEYCHAIN_ITEM_FAILED", message: "Error checking Keychain item", details: status))
         }
