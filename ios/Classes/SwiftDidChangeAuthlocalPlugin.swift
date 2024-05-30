@@ -65,7 +65,7 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "biometricCheck",
             kSecReturnData as String: true,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail // Do not prompt user
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip // Do not prompt user
         ]
 
         let status = SecItemCopyMatching(query as CFDictionary, nil)
