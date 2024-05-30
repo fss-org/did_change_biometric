@@ -72,7 +72,7 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
         if status == errSecSuccess {
             result(200) // Face ID has not changed
         } else if status == errSecItemNotFound || status == errSecAuthFailed {
-            result(true) // Keychain item not found or authentication failed, treat as Face ID changed
+            result(500) // Keychain item not found or authentication failed, treat as Face ID changed
         } else {
             result(FlutterError(code: "CHECK_KEYCHAIN_ITEM_FAILED", message: "Error checking Keychain item", details: status))
         }
