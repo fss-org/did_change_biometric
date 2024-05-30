@@ -33,7 +33,7 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
 
     private func createKeychainItem(result: @escaping FlutterResult) {
         let accessControl = SecAccessControlCreateWithFlags(nil, 
-            kSecAttrAccessibleWhenUnlockedThisDeviceOnly, 
+            kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, 
             .biometryCurrentSet, 
             nil)!
 
@@ -61,30 +61,19 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
     }
 
     private func checkIfFaceIDChanged(result: @escaping FlutterResult) {
-        let context = LAContext()
-        var error: NSError?
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "biometricCheck",
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail // Do not prompt user
+        ]
 
-        // Check if biometric authentication is available
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            let query: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrAccount as String: "biometricCheck",
-                kSecReturnData as String: true,
-                kSecUseOperationPrompt as String: "Authenticate to access your app"
-            ]
-
-            let status = SecItemCopyMatching(query as CFDictionary, nil)
-            if status == errSecSuccess {
-                result(200) // Face ID has not changed
-            } else if status == errSecItemNotFound {
-                result(404) // Keychain item not found, treat as Face ID changed
-            } else {
-                result(500) // Face ID has changed or another error occurred
-            }
+        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        if status == errSecSuccess {
+            result(200) // Face ID has not changed
+        } else if status == errSecItemNotFound {
+            result(404) // Keychain item not found, treat as Face ID changed
         } else {
-            result(FlutterError(code: "BIOMETRICS_NOT_AVAILABLE",
-                                message: "Biometrics not available",
-                                details: nil))
+            result(FlutterError(code: "CHECK_KEYCHAIN_ITEM_FAILED", message: "Error checking Keychain item", details: status))
         }
     }
 

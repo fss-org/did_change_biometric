@@ -28,7 +28,7 @@ class DidChangeAuthLocal {
       }
     } on PlatformException catch (e) {
       switch (e.code) {
-        case "BIOMETRICS_NOT_AVAILABLE":
+        case "CHECK_KEYCHAIN_ITEM_FAILED":
           return AuthLocalStatus.notAvailable;
         default:
           return null;
