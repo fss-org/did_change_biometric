@@ -40,11 +40,14 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     if (call.method == "check") {
       settingFingerPrint(result)
-    } if (call.method == "create_key") {
-      createKey(result)
-    } else {
-      result.notImplemented()
     }
+    
+    if (call.method == "create_key") {
+      createKey(result)
+    }
+
+    result.notImplemented()
+
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
@@ -90,7 +93,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   @RequiresApi(Build.VERSION_CODES.N)
-  private fun createKey() {
+  private fun createKey(result: Result) {
     // Delete existing key if it exists
     if (getCurrentKey(KEY_NAME) != null) {
       keyStore?.deleteEntry(KEY_NAME)
@@ -102,7 +105,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
       .setUserAuthenticationRequired(true)
       .setInvalidatedByBiometricEnrollment(true)
       .build())
-     result.success(true)
+    result.success("create_key_success")
   }
 
   fun getCurrentKey(keyName: String): Key? {
