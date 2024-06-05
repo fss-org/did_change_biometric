@@ -44,7 +44,8 @@ class DidChangeAuthLocal {
       if (Platform.isIOS) {
         return await methodChannel.invokeMethod('createBiometricState');
       } else {
-        return await methodChannel.invokeMethod('create_key');
+        final result = await methodChannel.invokeMethod('create_key');
+        return result == "create_key_success";
       }
     } on PlatformException catch (_) {
       rethrow;
