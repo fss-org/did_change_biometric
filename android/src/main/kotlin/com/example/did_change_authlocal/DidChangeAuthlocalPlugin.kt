@@ -31,7 +31,6 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   private val KEY_NAME = "did_change_authlocal"
   private var biometricPrompt: BiometricPrompt? = null
 
-
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "did_change_authlocal")
     channel.setMethodCallHandler(this)
@@ -41,6 +40,8 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     if (call.method == "check") {
       settingFingerPrint(result)
+    } if (call.method == "create_key") {
+      createKey(result)
     } else {
       result.notImplemented()
     }
@@ -51,26 +52,27 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   @RequiresApi(Build.VERSION_CODES.N)
-  private fun settingFingerPrint( result: Result) {
+  private fun settingFingerPrint(result: Result) {
     val cipher: Cipher = getCipher()
     val secretKey: SecretKey = getSecretKey()
 
     try {
       cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-
       result.success("biometric_valid")
-
     } catch (e: KeyPermanentlyInvalidatedException) {
-
       result.error("biometric_did_change",
-        "Yes your hand has been changed, please login to activate again",e.toString())
-
+        "Yes your hand has been changed, please login to activate again", e.toString())
     } catch (e: InvalidKeyException) {
       e.printStackTrace()
-      result.error("biometric_invalid","Invalid biometric",e.toString())
+      result.error("biometric_invalid", "Invalid biometric", e.toString())
     }
-    //Title require 
-    val promptInfo = BiometricPrompt.PromptInfo.Builder().setTitle("Biometric").setDescription("Check Biometric").setNegativeButtonText("OK").build()
+
+    // Title required
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+      .setTitle("Biometric")
+      .setDescription("Check Biometric")
+      .setNegativeButtonText("OK")
+      .build()
 
     try {
       cipher.init(Cipher.ENCRYPT_MODE, secretKey)
@@ -84,9 +86,25 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
           .setUserAuthenticationRequired(true) // Invalidate the keys if the user has registered a new biometric
           .setInvalidatedByBiometricEnrollment(true).build())
       }
-
     }
   }
+
+  @RequiresApi(Build.VERSION_CODES.N)
+  private fun createKey() {
+    // Delete existing key if it exists
+    if (getCurrentKey(KEY_NAME) != null) {
+      keyStore?.deleteEntry(KEY_NAME)
+    }
+    generateSecretKey(KeyGenParameterSpec.Builder(KEY_NAME,
+      KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+      .setBlockModes(KeyProperties.BLOCK_MODE_CBC)
+      .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_PKCS7)
+      .setUserAuthenticationRequired(true)
+      .setInvalidatedByBiometricEnrollment(true)
+      .build())
+     result.success(true)
+  }
+
   fun getCurrentKey(keyName: String): Key? {
     keyStore?.load(null)
     return keyStore?.getKey(keyName, null)
@@ -96,6 +114,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   fun getSecretKey(): SecretKey {
     try {
       keyStore = KeyStore.getInstance("AndroidKeyStore")
+      keyStore?.load(null)
     } catch (e: Exception) {
       e.printStackTrace()
     }
@@ -130,6 +149,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
               + KeyProperties.BLOCK_MODE_CBC + "/"
               + KeyProperties.ENCRYPTION_PADDING_PKCS7)
   }
+
   @RequiresApi(Build.VERSION_CODES.M)
   fun generateSecretKey(keyGenParameterSpec: KeyGenParameterSpec) {
     val keyGenerator = KeyGenerator.getInstance(
