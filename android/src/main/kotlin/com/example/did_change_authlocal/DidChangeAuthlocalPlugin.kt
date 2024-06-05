@@ -38,16 +38,14 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
 
   @RequiresApi(Build.VERSION_CODES.N)
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    if (call.method == "check") {
-      settingFingerPrint(result)
-    }
-    
-    if (call.method == "create_key") {
-      createKey(result)
-    }
 
-    result.notImplemented()
-
+    when (call.method) {
+      "check" -> settingFingerPrint(result)
+      "create_key" -> createKey(result)
+      else -> {
+        result.notImplemented()
+      }
+    }
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
