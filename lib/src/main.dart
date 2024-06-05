@@ -12,15 +12,14 @@ class DidChangeAuthLocal {
 
   static DidChangeAuthLocal get instance => _instance;
 
-  Future<AuthLocalStatus?> checkIfFaceIDChanged() async {
+  /// For iOS
+  /// This function will check if the user has updated the biometric
+  Future<AuthLocalStatus?> checkBiometricIOS() async {
     try {
-      final int result =
-          await methodChannel.invokeMethod('checkIfFaceIDChanged');
+      final int result = await methodChannel.invokeMethod('didChangeBiometric');
       switch (result) {
         case 200:
           return AuthLocalStatus.valid;
-        case 404:
-          return AuthLocalStatus.invalid;
         case 500:
           return AuthLocalStatus.changed;
         default:
@@ -28,61 +27,33 @@ class DidChangeAuthLocal {
       }
     } on PlatformException catch (e) {
       switch (e.code) {
-        case "CHECK_KEYCHAIN_ITEM_FAILED":
+        case "BIOMETRICS_UNAVAILABLE":
           return AuthLocalStatus.notAvailable;
+        case "BIOMETRICS_LOCKED":
+          return AuthLocalStatus.valid;
         default:
           return null;
       }
     }
   }
 
-  Future<bool?> createKeychainItem() async {
+  /// For iOS
+  /// This function will create biometric policy state
+  Future<bool?> createBiometricState() async {
     try {
-      return await methodChannel.invokeMethod('createKeychainItem');
-    } on PlatformException catch (e) {
-      if (e.code == 'CREATE_KEYCHAIN_ITEM_FAILED') {
-        return false;
-      } else {
-        return null;
+      if (Platform.isIOS) {
+        return await methodChannel.invokeMethod('createBiometricState');
       }
+      return null;
+    } on PlatformException catch (_) {
+      rethrow;
     }
   }
 
   Future<AuthLocalStatus?> onCheckBiometric({String? token}) async {
     return Platform.isIOS
-        ? await checkIfFaceIDChanged()
+        ? await checkBiometricIOS()
         : await checkBiometricAndroid();
-  }
-
-  Future<String> getTokenBiometric() async {
-    try {
-      final result = await methodChannel.invokeMethod('get_token');
-      return result.toString();
-    } catch (_) {
-      return '';
-    }
-  }
-
-  Future<AuthLocalStatus?> checkBiometricIOS({String token = ''}) async {
-    try {
-      final result = await methodChannel.invokeMethod('get_token');
-      debugPrint("checkBiometricIOS Token: ${result.toString()}");
-      debugPrint("checkBiometricIOS Token Saved: ${token.toString()}");
-      if (token == result && token.isNotEmpty) {
-        return AuthLocalStatus.valid;
-      } else if (token != result && token != '') {
-        return AuthLocalStatus.changed;
-      } else {
-        return AuthLocalStatus.invalid;
-      }
-    } on PlatformException catch (e) {
-      switch (e.code) {
-        case "biometric_invalid":
-          return AuthLocalStatus.invalid;
-        default:
-          return null;
-      }
-    }
   }
 
   //For Android ( Only Fingerprint )

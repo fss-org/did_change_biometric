@@ -9,102 +9,75 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
         registrar.addMethodCallDelegate(instance, channel: channel)
     }
 
-
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
-            case "checkIfFaceIDChanged":
-                self.checkIfFaceIDChanged(result: result)
-            case "createKeychainItem":
-                self.createKeychainItem(result: result)
-            case "get_token":
-                self.authenticateBiometric { data,code in
-                    switch code {
-                    case 200:
-                        result(data)
-                    case -7:
-                        result(FlutterError(code:"biometric_invalid",message:"Invalid biometric",details: data as Any))
-                    default:
-                        result(FlutterError(code:"unknow", message: data, details: nil))
-                    }}
+            case "didChangeBiometric":
+                self.didChangeBiometric(result: result)
+            case "createBiometricState":
+                self.createBiometricState(result: result)
             default:
                 result(FlutterMethodNotImplemented)
         }
     }
 
-    private func createKeychainItem(result: @escaping FlutterResult) {
-        let accessControl = SecAccessControlCreateWithFlags(nil, 
-            kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, 
-            .biometryCurrentSet, 
-            nil)!
-
-        let attributes: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "biometricCheck",
-            kSecValueData as String: "someData".data(using: .utf8)!,
-            kSecAttrAccessControl as String: accessControl
-        ]
-
-        // First, delete the old item if it exists
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "biometricCheck"
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add the new item
-        let status = SecItemAdd(attributes as CFDictionary, nil)
-        if status == errSecSuccess {
-            result(true)
-        } else {
-            result(FlutterError(code: "CREATE_KEYCHAIN_ITEM_FAILED", message: "Error creating Keychain item", details: status))
-        }
-    }
-
-    private func checkIfFaceIDChanged(result: @escaping FlutterResult) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "biometricCheck",
-            kSecReturnData as String: true,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip // Do not prompt user
-        ]
-
-        let status = SecItemCopyMatching(query as CFDictionary, nil)
-        if status == errSecSuccess {
-            result(200) // Face ID has not changed
-        } else if status == errSecItemNotFound || status == errSecAuthFailed {
-            result(500) // Keychain item not found or authentication failed, treat as Face ID changed
-        } else {
-            result(FlutterError(code: "CHECK_KEYCHAIN_ITEM_FAILED", message: "Error checking Keychain item", details: status))
-        }
-    }
-
-    func authenticateBiometric(complete : @escaping (String?, Int?) -> Void){
+    private func createBiometricState(result: @escaping FlutterResult) {
         let context = LAContext()
-        var authError : NSError?
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) == false {
-            complete(nil, authError?.code)
-            return
-        }
-        
-        if let biometricData = context.evaluatedPolicyDomainState {
-            let base64Data = biometricData.base64EncodedData()
-            let token = String(data: base64Data, encoding: .utf8)
-            complete(token, 200)
-        }else {
-            complete(nil, 998)
-        }
+        LAContext.savedBiometricsPolicyState = context.evaluatedPolicyDomainState
+        return result(true)
     }
 
+    private func didChangeBiometric(result: @escaping FlutterResult) {
+        let context = LAContext()
+        var error: NSError?
+        
+       // Check if biometrics can be evaluated
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            if let laError = error as? LAError, laError.code == .biometryLockout {
+                // Handle temporary lockout differently if desired
+                return result(FlutterError(code: "BIOMETRICS_LOCKED", message: "Biometrics is temporarily locked", details: laError.localizedDescription))
+            } else {
+                // Handle other biometric errors
+                return result(FlutterError(code: "BIOMETRICS_UNAVAILABLE", message: "Biometrics is not available", details: error?.localizedDescription))
+            }
+        }
+
+        // Check if biometrics have changed
+        if LAContext.biometricsChanged() {
+            return result(500)  // Biometric data has changed
+        } else {
+            return result(200)  // Biometric data has not changed
+        }
+    }
 }
 
-
-public class DidChangeBiometricPlugin: NSObject, FlutterPlugin {
-    
-    public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: "face_id_checker", binaryMessenger: registrar.messenger())
-        let instance = DidChangeBiometricPlugin()
-        registrar.addMethodCallDelegate(instance, channel: channel)
+extension LAContext {
+    static var savedBiometricsPolicyState: Data? {
+        get {
+            UserDefaults.standard.data(forKey: "BiometricsPolicyState")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "BiometricsPolicyState")
+        }
     }
-    
-    
+
+    static func biometricsChanged() -> Bool {
+        let context = LAContext()
+        var error: NSError?
+        context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+
+        // If there is no saved policy state yet, save it
+        if let domainState = context.evaluatedPolicyDomainState {
+            if LAContext.savedBiometricsPolicyState == nil {
+                LAContext.savedBiometricsPolicyState = domainState
+                return false
+            }
+
+            if domainState != LAContext.savedBiometricsPolicyState {
+                // Biometric data has changed
+                return true
+            }
+        }
+
+        return false
+    }
 }

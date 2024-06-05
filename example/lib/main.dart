@@ -25,28 +25,23 @@ class HomwPage extends StatefulWidget {
 }
 
 class _HomwPageState extends State<HomwPage> with WidgetsBindingObserver {
-  String _tokenBiometric = "";
-
   @override
   void initState() {
     WidgetsBinding.instance.addObserver(this);
-    onGetTokenBiometric();
+    createBiometricState();
     super.initState();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      onGetTokenBiometric();
       onResumeUpdateBiometric();
     }
   }
 
   //This function will compare previous and current token after the user create a new Face ID and clears Face ID
   void onResumeUpdateBiometric() async {
-    await DidChangeAuthLocal.instance
-        .onCheckBiometric(token: _tokenBiometric)
-        .then((value) {
+    await DidChangeAuthLocal.instance.onCheckBiometric().then((value) {
       if (value == AuthLocalStatus.changed) {
         showDialog(
             context: context,
@@ -61,15 +56,10 @@ class _HomwPageState extends State<HomwPage> with WidgetsBindingObserver {
   }
 
   //Just only for iOS
-  //We need to save token (iOS)
-  Future<void> onGetTokenBiometric() async {
+  //We need to create biometric policy state (iOS)
+  Future<void> createBiometricState() async {
     try {
-      final tokenBiometric =
-          await DidChangeAuthLocal.instance.getTokenBiometric();
-
-      setState(() {
-        _tokenBiometric = tokenBiometric;
-      });
+      await DidChangeAuthLocal.instance.createBiometricState();
     } on PlatformException catch (_) {}
   }
 
@@ -79,7 +69,7 @@ class _HomwPageState extends State<HomwPage> with WidgetsBindingObserver {
       appBar: AppBar(
         title: const Text('Did change Local Auth'),
       ),
-      body: Center(child: Text(_tokenBiometric)),
+      body: const Center(child: Text('Did change Local Auth')),
     );
   }
 }
