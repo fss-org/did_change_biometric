@@ -7,7 +7,6 @@ import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import androidx.annotation.NonNull
 import androidx.annotation.RequiresApi
-import androidx.biometric.BiometricPrompt
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -20,6 +19,14 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricManager.Authenticators.*
+import androidx.biometric.BiometricPrompt
+
+import android.content.Context
+import android.util.Log
+
+
 /** DidChangeAuthlocalPlugin */
 class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   /// The MethodChannel that will the communication between Flutter and native Android
@@ -30,10 +37,12 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   private var keyStore: KeyStore? = null
   private val KEY_NAME = "did_change_authlocal"
   private var biometricPrompt: BiometricPrompt? = null
+  private lateinit var context: Context
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "did_change_authlocal")
     channel.setMethodCallHandler(this)
+    context = flutterPluginBinding.getApplicationContext()
   }
 
   @RequiresApi(Build.VERSION_CODES.N)
@@ -42,6 +51,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
     when (call.method) {
       "check" -> settingFingerPrint(result)
       "create_key" -> createKey(result)
+      "isAvailableBiometric" -> isAvailableBiometric(result)
       else -> {
         result.notImplemented()
       }
@@ -68,6 +78,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
       result.error("biometric_invalid", "Invalid biometric", e.toString())
     }
 
+    /* 認証ダイアログ表示は Flutter の local_auth で対応可能なので不要
     // Title required
     val promptInfo = BiometricPrompt.PromptInfo.Builder()
       .setTitle("Biometric")
@@ -79,6 +90,8 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
       cipher.init(Cipher.ENCRYPT_MODE, secretKey)
       biometricPrompt?.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
     } catch (e: KeyPermanentlyInvalidatedException) {
+      // 認証エラーで例外が発生したらキーストアから削除して新しく作り直しているので、次回からは認証が通る
+      // 認証エラー時に新しく勝手に登録されたら意味がないので削除
       keyStore?.deleteEntry(KEY_NAME)
       if (getCurrentKey(KEY_NAME) == null) {
         generateSecretKey(KeyGenParameterSpec.Builder(KEY_NAME,
@@ -88,6 +101,27 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
           .setInvalidatedByBiometricEnrollment(true).build())
       }
     }
+     */
+  }
+
+  private fun isAvailableBiometric(result: Result) {
+    var isAvailable = false
+    val biometricManager = BiometricManager.from(context)
+    when (biometricManager.canAuthenticate(BIOMETRIC_STRONG)) {
+      BiometricManager.BIOMETRIC_SUCCESS -> {
+        isAvailable = true
+        Log.d("MY_APP_TAG", "App can authenticate using biometrics.")
+      }
+      BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE ->
+        Log.e("MY_APP_TAG", "No biometric features available on this device.")
+      BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE ->
+        Log.e("MY_APP_TAG", "Biometric features are currently unavailable.")
+      BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+        // Prompts the user to create credentials that your app accepts.
+        Log.e("MY_APP_TAG", "BIOMETRIC_ERROR_NONE_ENROLLED")
+      }
+    }
+    result.success(isAvailable)
   }
 
   @RequiresApi(Build.VERSION_CODES.N)

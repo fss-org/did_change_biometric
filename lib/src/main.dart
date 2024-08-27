@@ -43,9 +43,11 @@ class DidChangeAuthLocal {
     try {
       if (Platform.isIOS) {
         return await methodChannel.invokeMethod('createBiometricState');
-      } else {
+      } else if (Platform.isAndroid) {
         final result = await methodChannel.invokeMethod('create_key');
         return result == "create_key_success";
+      } else {
+        return false;
       }
     } on PlatformException catch (_) {
       rethrow;
@@ -78,4 +80,11 @@ class DidChangeAuthLocal {
       return null;
     }
   }
+
+
+  Future<bool> isAvailableBiometric() async {
+    final value = await methodChannel.invokeMethod('isAvailableBiometric');
+    return value;
+  }
+
 }
