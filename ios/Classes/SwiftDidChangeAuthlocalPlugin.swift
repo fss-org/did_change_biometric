@@ -67,10 +67,13 @@ extension LAContext {
 
         // If there is no saved policy state yet, save it
         if let domainState = context.evaluatedPolicyDomainState {
+            /* 生体認証情報の状態が保存されていないときに新たに認証した状態を保存している. 変更の検知だけしたいので不要
+               新たに保村してしまうと不正に端末にアクセスし新たに登録した生体認証情報の状態を保存出来てしまう
             if LAContext.savedBiometricsPolicyState == nil {
                 LAContext.savedBiometricsPolicyState = domainState
                 return false
             }
+            */
 
             if domainState != LAContext.savedBiometricsPolicyState {
                 // Biometric data has changed
