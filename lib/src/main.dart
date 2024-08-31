@@ -88,4 +88,12 @@ class DidChangeAuthLocal {
     return value;
   }
 
+  Future<void> setKeychainItem(String? service, String? account) async {
+    final Map params = <String, String?> {
+      'service': service,
+      'account': account,
+    };
+    await methodChannel.invokeMethod('setKeychainItem', params);
+    return;
+  }
 }

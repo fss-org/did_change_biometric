@@ -11,14 +11,32 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
-            case "didChangeBiometric":
-                self.didChangeBiometric(result: result)
-            case "createBiometricState":
-                self.createBiometricState(result: result)
-            default:
-                result(FlutterMethodNotImplemented)
+        case "didChangeBiometric":
+            self.didChangeBiometric(result: result)
+        case "createBiometricState":
+            self.createBiometricState(result: result)
+        case "setKeychainItem":
+            self.setKeychainItem(result: result, arguments: call.arguments)
+        default:
+            result(FlutterMethodNotImplemented)
         }
     }
+    
+    
+    private var keychainService: String? = nil
+    private var keychainAccount: String? = nil
+
+    func setKeychainItem(result: @escaping FlutterResult, arguments: Any?) {
+        if let dic = arguments as? Dictionary<String, String?> {
+            if let service = dic["service"], let account = dic["account"] {
+                keychainService = service
+                keychainAccount = account
+                return result(true)
+            }
+        }
+        return result(false)
+    }
+
 
     private func createBiometricState(result: @escaping FlutterResult) {
         let context = LAContext()
@@ -27,8 +45,7 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
             return result(false)
         }
 
-        //let state = context.evaluatedPolicyDomainState
-        LAContext.savedBiometricsPolicyState = context.evaluatedPolicyDomainState
+        saveBiometricsPolicyState(data: context.evaluatedPolicyDomainState)
         return result(true)
     }
 
@@ -48,41 +65,21 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
         }
 
         // Check if biometrics have changed
-        if LAContext.biometricsChanged() {
+        if biometricsChanged() {
             return result(500)  // Biometric data has changed
         } else {
             return result(200)  // Biometric data has not changed
         }
     }
-}
 
-extension LAContext {
-    static var savedBiometricsPolicyState: Data? {
-        get {
-            UserDefaults.standard.data(forKey: "BiometricsPolicyState")
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "BiometricsPolicyState")
-        }
-    }
-
-    static func biometricsChanged() -> Bool {
+    private func biometricsChanged() -> Bool {
         let context = LAContext()
         var error: NSError?
         context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
 
         // If there is no saved policy state yet, save it
         if let domainState = context.evaluatedPolicyDomainState {
-            /* 生体認証情報の状態が保存されていないときに新たに認証した状態を保存している. 変更の検知だけしたいので不要
-               新たに保村してしまうと不正に端末にアクセスし新たに登録した生体認証情報の状態を保存出来てしまう
-            if LAContext.savedBiometricsPolicyState == nil {
-                LAContext.savedBiometricsPolicyState = domainState
-                return false
-            }
-            */
-
-            //let state = LAContext.savedBiometricsPolicyState
-            if domainState != LAContext.savedBiometricsPolicyState {
+            if domainState != getBiometricsPolicyState() {
                 // Biometric data has changed
                 return true
             }
@@ -90,4 +87,18 @@ extension LAContext {
 
         return false
     }
+    
+    private func saveBiometricsPolicyState(data: Data?) {
+        if let data = data, let keychainService = keychainService, let keychainAccount = keychainAccount {
+            _ = KeyChainManager.save(data, service: keychainService, account: keychainAccount)
+        }
+    }
+    
+    private func getBiometricsPolicyState() -> Data? {
+        if let keychainService = keychainService, let keychainAccount = keychainAccount {
+            return KeyChainManager.read(service: keychainService, account: keychainAccount)
+        }
+        return nil
+    }
+
 }
