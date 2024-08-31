@@ -22,6 +22,12 @@ public class SwiftDidChangeAuthlocalPlugin: NSObject, FlutterPlugin {
 
     private func createBiometricState(result: @escaping FlutterResult) {
         let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            return result(false)
+        }
+
+        //let state = context.evaluatedPolicyDomainState
         LAContext.savedBiometricsPolicyState = context.evaluatedPolicyDomainState
         return result(true)
     }
@@ -75,6 +81,7 @@ extension LAContext {
             }
             */
 
+            //let state = LAContext.savedBiometricsPolicyState
             if domainState != LAContext.savedBiometricsPolicyState {
                 // Biometric data has changed
                 return true

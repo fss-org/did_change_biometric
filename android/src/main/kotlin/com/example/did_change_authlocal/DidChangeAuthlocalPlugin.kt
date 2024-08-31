@@ -49,7 +49,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
 
     when (call.method) {
-      "check" -> settingFingerPrint(result)
+      "check" -> checkDidChange(result)
       "create_key" -> createKey(result)
       "isAvailableBiometric" -> isAvailableBiometric(result)
       else -> {
@@ -63,7 +63,7 @@ class DidChangeAuthlocalPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   @RequiresApi(Build.VERSION_CODES.N)
-  private fun settingFingerPrint(result: Result) {
+  private fun checkDidChange(result: Result) {
     val cipher: Cipher = getCipher()
     val secretKey: SecretKey = getSecretKey()
 

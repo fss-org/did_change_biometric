@@ -14,7 +14,7 @@ class DidChangeAuthLocal {
 
   /// For iOS
   /// This function will check if the user has updated the biometric
-  Future<AuthLocalStatus?> checkBiometricIOS() async {
+  Future<AuthLocalStatus?> _checkBiometricIOS() async {
     try {
       final int result = await methodChannel.invokeMethod('didChangeBiometric');
       switch (result) {
@@ -37,13 +37,14 @@ class DidChangeAuthLocal {
     }
   }
 
-  /// For iOS
-  /// This function will create biometric policy state
+  /// 現在デバイスに登録されている生体認証の状態を保存
   Future<bool?> createBiometricState() async {
     try {
       if (Platform.isIOS) {
+        // iOS
         return await methodChannel.invokeMethod('createBiometricState');
       } else if (Platform.isAndroid) {
+        // Android
         final result = await methodChannel.invokeMethod('create_key');
         return result == "create_key_success";
       } else {
@@ -54,15 +55,15 @@ class DidChangeAuthLocal {
     }
   }
 
-  Future<AuthLocalStatus?> onCheckBiometric({String? token}) async {
+  Future<AuthLocalStatus?> onCheckBiometric() async {
     return Platform.isIOS
-        ? await checkBiometricIOS()
-        : await checkBiometricAndroid();
+        ? await _checkBiometricIOS()
+        : await _checkBiometricAndroid();
   }
 
   //For Android ( Only Fingerprint )
   //If user does not update Finger then Biometric Status will be AuthLocalStatus.valid
-  Future<AuthLocalStatus?> checkBiometricAndroid() async {
+  Future<AuthLocalStatus?> _checkBiometricAndroid() async {
     try {
       final result = await methodChannel.invokeMethod('check');
       return result == 'biometric_valid' ? AuthLocalStatus.valid : null;
